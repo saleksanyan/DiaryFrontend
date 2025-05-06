@@ -134,7 +134,7 @@ export default async function Page({
       </div>
 
       {/* Comments Section */}
-      <Comments postId={params.id} />
+      <Comments postId={params.id} postAuthorName={post.author} />
 
       {/* More from Author Section */}
       <div className="bg-pink-50 py-20 px-4">

@@ -8,44 +8,72 @@ interface Comment {
   id: string;
   comment: string;
   author: string;
-  authorId: string;
+  authorName: string;
   createdAt: string;
   isAuthor: boolean;
+  isPostAuthor?: boolean;
 }
 
-export function Comments({ postId }: { postId: string }) {
-      const { isAuthenticated, token } = useAuth();
-    
+export function Comments({ postId, postAuthorName }: { postId: string; postAuthorName: string }) {
+  const { user, token } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState('');
-  const [currentUserId, setCurrentUserId] = useState('');
+  const [currentUsername, setCurrentUsername] = useState('');
 
   useEffect(() => {
     if (token) {
-      try {
-        const userData = JSON.parse(atob(token.split('.')[1]));
-        setCurrentUserId(userData.userId);
-      } catch (err) {
-        console.error('Error decoding token:', err);
-      }
+      fetchUser();
     }
+  }, [token]);
 
+  useEffect(() => {
     fetchComments();
-  }, [postId]);
+  }, [postId, currentUsername]); // Run when postId or currentUsername changes
+
+  const fetchUser = async () => {
+    try {
+      if (!token) return; // Guard clause
+      
+      const userResponse = await fetch('http://localhost:3000/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!userResponse.ok) throw new Error('Failed to fetch user data');
+      
+      const data = await userResponse.json();
+      setCurrentUsername(data.username);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load user data');
+    }
+  };
 
   const fetchComments = async () => {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Only add auth header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`http://localhost:3000/comment/list/${postId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: "GET",
+        headers
       });
 
       if (!response.ok) throw new Error('Failed to fetch comments');
       
       const data = await response.json();
+
       setComments(data.comments.map((comment: any) => ({
         ...comment,
-        isAuthor: comment.authorId === currentUserId
+        isAuthor: comment.authorName === currentUsername,
+        isPostAuthor: currentUsername === postAuthorName
       })));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load comments');
@@ -72,7 +100,7 @@ export function Comments({ postId }: { postId: string }) {
           postId
         })
       });
-
+      
       if (!response.ok) throw new Error('Failed to add comment');
       
       setNewComment('');
@@ -84,7 +112,6 @@ export function Comments({ postId }: { postId: string }) {
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      const token = localStorage.getItem('tempToken');
       const response = await fetch(`http://localhost:3000/comment/${commentId}`, {
         method: 'DELETE',
         headers: {
@@ -110,8 +137,46 @@ export function Comments({ postId }: { postId: string }) {
         </div>
       )}
 
-      {/* Add comment form */}
-      <div className="mb-8 flex gap-2">
+      {/* Comments list - moved to top */}
+      <div className="space-y-4 mb-8">
+        {comments.length === 0 ? (
+          <p className="text-pink-600">No comments yet. Be the first to comment!</p>
+        ) : (
+          comments.map((comment) => (
+            <div key={comment.id} className="bg-pink-50 rounded-lg p-4 border border-pink-100">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <User className="h-4 w-4 text-pink-600" />
+                    <p className="font-medium text-pink-900">{comment.author}</p>
+                    {comment.author === postAuthorName && (
+                      <span className="text-xs bg-pink-100 text-pink-800 px-2 py-1 rounded">
+                        Author
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-pink-600 mb-2">
+                    {new Date(comment.createdAt).toLocaleString()}
+                  </p>
+                  <p className="text-pink-800">{comment.comment}</p>
+                </div>
+                {(comment.isAuthor || comment.isPostAuthor) && (
+                  <button
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="text-pink-600 hover:text-pink-800 text-sm"
+                    title="Delete comment"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Add comment form - moved to bottom */}
+      <div className="flex gap-2">
         <input
           type="text"
           value={newComment}
@@ -127,39 +192,6 @@ export function Comments({ postId }: { postId: string }) {
         >
           Post
         </button>
-      </div>
-
-      {/* Comments list */}
-      <div className="space-y-4">
-        {comments.length === 0 ? (
-          <p className="text-pink-600">No comments yet. Be the first to comment!</p>
-        ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="bg-pink-50 rounded-lg p-4 border border-pink-100">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="h-4 w-4 text-pink-600" />
-                    <p className="font-medium text-pink-900">{comment.author}</p>
-                  </div>
-                  <p className="text-sm text-pink-600 mb-2">
-                    {new Date(comment.createdAt).toLocaleString()}
-                  </p>
-                  <p className="text-pink-800">{comment.comment}</p>
-                </div>
-                {comment.isAuthor && (
-                  <button
-                    onClick={() => handleDeleteComment(comment.id)}
-                    className="text-pink-600 hover:text-pink-800 text-sm"
-                    title="Delete comment"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
-        )}
       </div>
     </div>
   );

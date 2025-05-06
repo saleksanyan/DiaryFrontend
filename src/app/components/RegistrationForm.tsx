@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DiaryLogo from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 
 type FormData = {
   username: string;
@@ -20,6 +21,7 @@ export default function RegistrationForm() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -49,7 +51,8 @@ export default function RegistrationForm() {
         throw new Error(data.message || 'Registration failed');
       }
 
-      localStorage.setItem('tempToken', data.token);
+      await login(data.token);
+
       router.push('/register-verify', { scroll: false });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
