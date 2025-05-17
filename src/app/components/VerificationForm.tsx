@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -24,7 +24,7 @@ const CONFIG: Record<VerificationType, VerificationConfig> = {
     successRedirect: '/profile',
     title: 'Secure Login',
     description: 'Enter the verification code sent to your email',
-    codeLength: 4
+    codeLength: 4,
   },
   register: {
     endpoint: '/user/register',
@@ -32,7 +32,7 @@ const CONFIG: Record<VerificationType, VerificationConfig> = {
     successRedirect: '/login',
     title: 'Verify Your Email',
     description: 'We sent a code to complete your registration',
-    codeLength: 4
+    codeLength: 4,
   },
   'password-reset': {
     endpoint: '/user/login',
@@ -40,15 +40,18 @@ const CONFIG: Record<VerificationType, VerificationConfig> = {
     successRedirect: '/reset-password',
     title: 'Reset Password',
     description: 'Enter verification code to continue',
-    codeLength: 4
-  }
+    codeLength: 4,
+  },
 };
 
-export default function VerificationForm({ 
+export default function VerificationForm({
   type = 'login',
-  email = ''
-}: { type?: VerificationType, email?: string }) {
-  const { token } = useAuth();
+  email = '',
+}: {
+  type?: VerificationType;
+  email?: string;
+}) {
+  const { token, login } = useAuth();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -70,7 +73,7 @@ export default function VerificationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length !== currentConfig.codeLength) return;
-    
+
     setIsLoading(true);
     setError('');
 
@@ -79,16 +82,25 @@ export default function VerificationForm({
         method: currentConfig.method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code }),
       });
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || 'Verification failed');
       }
-      
+      const data = await response.json();
+
+      if (type === 'login' && token != null) {
+        await login(token, {
+          id: data.id,
+          username: data.username,
+          email: data.email,
+        });
+      }
+
       router.push(currentConfig.successRedirect);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
@@ -111,17 +123,17 @@ export default function VerificationForm({
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) {
         if (response.status === 429) {
           throw new Error('Please wait before requesting a new code');
         }
         throw new Error('Failed to resend code');
       }
-      
+
       setResendSuccess('New code sent successfully!');
       setCode('');
       if (inputRef.current) {
@@ -146,18 +158,17 @@ export default function VerificationForm({
   };
 
   const renderCodeInputs = () => (
-    <div 
-      className="flex justify-center gap-4 mb-8 cursor-text"
-      onClick={handleInputClick}
-    >
+    <div className="flex justify-center gap-4 mb-8 cursor-text" onClick={handleInputClick}>
       {Array.from({ length: currentConfig.codeLength }).map((_, index) => (
-        <div 
-          key={index} 
+        <div
+          key={index}
           className={`
             w-16 h-16 flex items-center justify-center text-3xl font-medium rounded-lg border-2 transition-all
-            ${code.length > index 
-              ? 'border-pink-500 bg-pink-50 text-pink-700 shadow-sm' 
-              : 'border-pink-200 text-gray-400'}
+            ${
+              code.length > index
+                ? 'border-pink-500 bg-pink-50 text-pink-700 shadow-sm'
+                : 'border-pink-200 text-gray-400'
+            }
           `}
         >
           {code[index] || '•'}
@@ -167,108 +178,122 @@ export default function VerificationForm({
   );
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left image */}
+    <div className="min-h-screen relative">
+      {/* Full-screen background image with transparency */}
       <div
-        className="w-1/2 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1686064196392-fd20325c68c7?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDY0fHx8ZW58MHx8fHx8')",
-          backgroundAttachment: "fixed"
+          backgroundImage:
+            "url('https://d4804za1f1gw.cloudfront.net/wp-content/uploads/sites/50/2018/11/hero.jpg')",
+          backgroundAttachment: 'fixed',
+          opacity: 0.85,
         }}
-      >
-        <div className="absolute top-8 left-8 z-10">
-          <DiaryLogo className="" logoClassName="text-3xl font-serif italic text-white hover:text-white transition-colors"/>
-          <p className="text-white text-sm mt-1">Your personal stories & reflections</p>
-        </div>
+      />
+
+      {/* Logo */}
+      <div className="absolute top-8 left-8 z-10">
+        <DiaryLogo
+          className=""
+          logoClassName="text-3xl font-serif italic text-white hover:text-white transition-colors"
+        />
+        <p className="text-white text-sm mt-1">Your personal stories & reflections</p>
       </div>
 
-      {/* Right Side - Verification Form */}
-      <div className="w-1/2 bg-white flex justify-center items-center">
-        <div className="w-full max-w-md p-8 border border-pink-100 rounded-xl shadow-xl">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-serif text-pink-900 mb-2">{currentConfig.title}</h2>
-            <p className="text-pink-600">{currentConfig.description}</p>
-          </div>
+      {/* Main content */}
+      <div className="relative z-10 min-h-screen flex">
+        {/* Left empty space */}
+        <div className="w-1/2"></div>
 
-          {paramEmail && (
-            <div className="mb-6 text-center">
-              <p className="text-pink-600 text-sm">Code sent to</p>
-              <p className="font-medium text-pink-800 mt-1">{paramEmail}</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          {resendSuccess && (
-            <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
-              {resendSuccess}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-pink-900 mb-3 text-center">
-                Verification Code
-              </label>
-              
-              {/* Hidden input for actual code entry */}
-              <input
-                ref={inputRef}
-                type="text"
-                inputMode="numeric"
-                pattern="\d*"
-                maxLength={currentConfig.codeLength}
-                value={code}
-                onChange={handleCodeChange}
-                className="absolute opacity-0 h-0 w-0"
-                autoFocus
-                required
-              />
-              
-              {/* Visual code display */}
-              {renderCodeInputs()}
+        {/* Right Side - Verification Form */}
+        <div className="w-1/2 flex justify-center items-center">
+          <div className="w-full max-w-md p-8 border border-pink-100 rounded-xl shadow-xl bg-white bg-opacity-95">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-serif text-pink-900 mb-2">{currentConfig.title}</h2>
+              <p className="text-pink-600">{currentConfig.description}</p>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || code.length !== currentConfig.codeLength}
-              className={`
-                w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-300 transition
-                ${isLoading || code.length !== currentConfig.codeLength
-                  ? 'bg-pink-300 cursor-not-allowed'
-                  : 'bg-pink-600 hover:bg-pink-700'}
-              `}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin mr-2 h-5 w-5" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  Continue <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </button>
-          </form>
+            {paramEmail && (
+              <div className="mb-6 text-center">
+                <p className="text-pink-600 text-sm">Code sent to</p>
+                <p className="font-medium text-pink-800 mt-1">{paramEmail}</p>
+              </div>
+            )}
 
-          <div className="mt-6 text-center text-sm text-pink-700">
-            Didn't receive a code?{' '}
-            <button
-              type="button"
-              onClick={handleResendCode}
-              disabled={isResending}
-              className={`
-                font-medium text-pink-600 hover:text-pink-500 transition
-                ${isResending ? 'text-pink-400' : ''}
-              `}
-            >
-              {isResending ? 'Sending...' : 'Resend code'}
-            </button>
+            {error && (
+              <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            {resendSuccess && (
+              <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                {resendSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div className="mb-8">
+                <label className="block text-sm font-medium text-pink-900 mb-3 text-center">
+                  Verification Code
+                </label>
+
+                {/* Hidden input for actual code entry */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d*"
+                  maxLength={currentConfig.codeLength}
+                  value={code}
+                  onChange={handleCodeChange}
+                  className="absolute opacity-0 h-0 w-0"
+                  autoFocus
+                  required
+                />
+
+                {/* Visual code display */}
+                {renderCodeInputs()}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || code.length !== currentConfig.codeLength}
+                className={`
+                  w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-300 transition
+                  ${
+                    isLoading || code.length !== currentConfig.codeLength
+                      ? 'bg-pink-300 cursor-not-allowed'
+                      : 'bg-pink-600 hover:bg-pink-700'
+                  }
+                `}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    Continue <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-pink-700">
+              Didn't receive a code?{' '}
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={isResending}
+                className={`
+                  font-medium text-pink-600 hover:text-pink-500 transition
+                  ${isResending ? 'text-pink-400' : ''}
+                `}
+              >
+                {isResending ? 'Sending...' : 'Resend code'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

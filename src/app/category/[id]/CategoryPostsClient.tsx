@@ -6,6 +6,7 @@ import { CalendarDays, User, Search } from 'lucide-react';
 import DiaryLogo from '@/app/components/Logo';
 import { useAuth } from '@/app/context/AuthContext';
 import { TopNav } from '@/app/components/TopNav';
+import { MOOD_COLORS } from '@/app/components/UserProfile';
 
 interface BlogPost {
   id: string;
@@ -40,29 +41,25 @@ export default function CategoryPostsClient({
       try {
         setIsLoading(true);
         const token = localStorage.getItem('tempToken');
-        
+
         // First fetch the category name
         const categoryRes = await fetch(`http://localhost:3000/category/${id}`, {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        
+
         if (!categoryRes.ok) {
           console.error('Failed to fetch category');
           return;
         }
-        
+
         const category = await categoryRes.json();
         setCategoryName(category.name);
         const cleanedCategoryName = encodeURIComponent(category.name.replaceAll(' ', '-'));
 
-        // Then fetch the posts for this category with sorting
-        const response = await fetch(
-          `http://localhost:3000/post/category/${cleanedCategoryName}?sort=${sort}`, // Add sort parameter
-          {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-          }
-        );
-        
+        const response = await fetch(`http://localhost:3000/post/category/${cleanedCategoryName}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
         if (response.ok) {
           const data = await response.json();
           setPosts(data.posts);
@@ -76,7 +73,7 @@ export default function CategoryPostsClient({
     }
 
     fetchCategoryAndPosts();
-  }, [id, sort, isAuthenticated]); // sort is now properly used in the dependency array
+  }, [id, sort, isAuthenticated]);
 
   // Apply client-side sorting as fallback (optional)
   const sortedPosts = [...posts].sort((a, b) => {
@@ -85,8 +82,8 @@ export default function CategoryPostsClient({
     return sort === 'newest' ? dateB - dateA : dateA - dateB;
   });
 
-  const filteredPosts = sortedPosts.filter(post =>
-    post.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPosts = sortedPosts.filter((post) =>
+    post.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -123,8 +120,8 @@ export default function CategoryPostsClient({
             <Link
               href={`/category/${id}?sort=newest`}
               className={`px-4 py-2 rounded-lg border ${
-                sort === 'newest' 
-                  ? 'bg-pink-600 text-white border-pink-600' 
+                sort === 'newest'
+                  ? 'bg-pink-600 text-white border-pink-600'
                   : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'
               }`}
             >
@@ -133,8 +130,8 @@ export default function CategoryPostsClient({
             <Link
               href={`/category/${id}?sort=oldest`}
               className={`px-4 py-2 rounded-lg border ${
-                sort === 'oldest' 
-                  ? 'bg-pink-600 text-white border-pink-600' 
+                sort === 'oldest'
+                  ? 'bg-pink-600 text-white border-pink-600'
                   : 'bg-white text-pink-700 border-pink-200 hover:bg-pink-50'
               }`}
             >
@@ -153,9 +150,7 @@ export default function CategoryPostsClient({
             <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-pink-100 text-pink-600 mb-6">
               <Search className="h-8 w-8" />
             </div>
-            <h3 className="text-xl font-medium text-pink-900 mb-3">
-              No posts found
-            </h3>
+            <h3 className="text-xl font-medium text-pink-900 mb-3">No posts found</h3>
             <p className="text-pink-600 max-w-md mx-auto">
               {searchQuery
                 ? 'Try a different search term'
@@ -165,46 +160,62 @@ export default function CategoryPostsClient({
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPosts.map((post) => (
-              <div 
-                key={post.id} 
+              <div
+                key={post.id}
                 className="bg-white rounded-xl overflow-hidden border border-pink-100 hover:shadow-lg transition-all duration-300"
               >
-                <Link href={`/post/${post.id}`}>
-                  <div className="p-6">
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {post.categories.slice(0, 2).map((category, index) => (
-                        <Link 
-                          key={index}
-                          href={`/category/${encodeURIComponent(category)}`}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-50 text-pink-600 hover:bg-pink-100"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {category}
-                        </Link>
-                      ))}
-                      {post.categories.length > 2 && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-50 text-pink-600">
-                          +{post.categories.length - 2}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-xl font-semibold text-pink-800 mb-3 line-clamp-2">
-                      {post.title}
-                    </h3>
-                    <div className="flex items-center justify-between text-sm text-pink-600">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        <span>{post.author}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="h-4 w-4" />
-                        <span title={new Date(post.createdAt).toLocaleString()}>
-                          {new Date(post.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
+                <div className="p-6">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {post.categories.slice(0, 2).map((category, index) => (
+                      <Link
+                        key={index}
+                        href={`/category/${encodeURIComponent(category)}`}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-50 text-pink-600 hover:bg-pink-100"
+                      >
+                        {category}
+                      </Link>
+                    ))}
+                    {post.categories.length > 2 && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-50 text-pink-600">
+                        +{post.categories.length - 2}
+                      </span>
+                    )}
                   </div>
-                </Link>
+                  <Link href={`/post/${post.id}`}>
+                    <div>
+                      <h3 className="text-xl font-semibold text-pink-800 mb-3 line-clamp-2">
+                        {post.title}
+                      </h3>
+                      <div className="flex items-center justify-between text-sm text-pink-600">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>{post.author}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4" />
+                          <span title={new Date(post.createdAt).toLocaleString()}>
+                            {new Date(post.createdAt).toLocaleDateString()}
+                          </span>
+                          {post.mood && (
+                            <>
+                              <span className="mx-1">•</span>
+                              <span className="flex items-center">
+                                <span
+                                  className="inline-block w-3 h-3 rounded-full mr-1"
+                                  style={{
+                                    backgroundColor:
+                                      MOOD_COLORS[post.mood.toLowerCase()] || MOOD_COLORS.neutral,
+                                  }}
+                                ></span>
+                                {post.mood}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

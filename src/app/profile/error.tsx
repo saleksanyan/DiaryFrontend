@@ -10,9 +10,7 @@ export default function DashboardError({
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full text-center">
-        <h2 className="text-xl font-semibold text-red-600 mb-4">
-          Dashboard Error
-        </h2>
+        <h2 className="text-xl font-semibold text-red-600 mb-4">Dashboard Error</h2>
         <p className="text-gray-700 mb-4">{error.message}</p>
         <button
           onClick={() => reset()}

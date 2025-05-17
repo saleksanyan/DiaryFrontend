@@ -29,20 +29,20 @@ export function Comments({ postId, postAuthorName }: { postId: string; postAutho
 
   useEffect(() => {
     fetchComments();
-  }, [postId, currentUsername]); // Run when postId or currentUsername changes
+  }, [postId, currentUsername]);
 
   const fetchUser = async () => {
     try {
-      if (!token) return; // Guard clause
-      
+      if (!token) return;
+
       const userResponse = await fetch('http://localhost:3000/user', {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!userResponse.ok) throw new Error('Failed to fetch user data');
-      
+
       const data = await userResponse.json();
       setCurrentUsername(data.username);
     } catch (err) {
@@ -53,28 +53,30 @@ export function Comments({ postId, postAuthorName }: { postId: string; postAutho
   const fetchComments = async () => {
     try {
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       };
-      
+
       // Only add auth header if token exists
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`http://localhost:3000/comment/list/${postId}`, {
-        method: "GET",
-        headers
+        method: 'GET',
+        headers,
       });
 
       if (!response.ok) throw new Error('Failed to fetch comments');
-      
+
       const data = await response.json();
 
-      setComments(data.comments.map((comment: any) => ({
-        ...comment,
-        isAuthor: comment.authorName === currentUsername,
-        isPostAuthor: currentUsername === postAuthorName
-      })));
+      setComments(
+        data.comments.map((comment: any) => ({
+          ...comment,
+          isAuthor: comment.authorName === currentUsername,
+          isPostAuthor: currentUsername === postAuthorName,
+        })),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load comments');
     }
@@ -82,7 +84,7 @@ export function Comments({ postId, postAuthorName }: { postId: string; postAutho
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
-    
+
     try {
       if (!token) {
         setError('Please login to comment');
@@ -93,16 +95,16 @@ export function Comments({ postId, postAuthorName }: { postId: string; postAutho
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           comment: newComment,
-          postId
-        })
+          postId,
+        }),
       });
-      
+
       if (!response.ok) throw new Error('Failed to add comment');
-      
+
       setNewComment('');
       await fetchComments();
     } catch (err) {
@@ -115,12 +117,12 @@ export function Comments({ postId, postAuthorName }: { postId: string; postAutho
       const response = await fetch(`http://localhost:3000/comment/${commentId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) throw new Error('Failed to delete comment');
-      
+
       await fetchComments();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete comment');
@@ -130,7 +132,7 @@ export function Comments({ postId, postAuthorName }: { postId: string; postAutho
   return (
     <div className="mt-16 max-w-2xl mx-auto px-4">
       <h3 className="text-2xl font-bold text-pink-900 mb-6">Comments</h3>
-      
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
           {error}

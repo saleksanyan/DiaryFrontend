@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import VerificationForm from '../components/VerificationForm';
 import Head from 'next/head';

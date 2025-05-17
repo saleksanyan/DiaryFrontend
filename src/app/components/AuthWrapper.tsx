@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,7 +11,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('tempToken') : null;
-    
+
     setIsAuthenticated(!!token);
     setLoading(false);
   }, []);
@@ -25,11 +25,9 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
   }
 
   return (
-        <div className="min-h-screen bg-white font-sans flex">
-          {isAuthenticated && <TopNav />}
-          <div className={`flex-1 ${isAuthenticated ? 'pl-16 md:pl-20' : ''}`}>
-            {children}
-          </div>
-        </div>
-      );
+    <div className="min-h-screen bg-white font-sans flex">
+      {isAuthenticated && <TopNav />}
+      <div className={`flex-1 ${isAuthenticated ? 'pl-16 md:pl-20' : ''}`}>{children}</div>
+    </div>
+  );
 }

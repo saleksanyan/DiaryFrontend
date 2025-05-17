@@ -1,5 +1,5 @@
-import RegisterVerificationPage from '../components/RegisterVerify'
+import RegisterVerificationPage from '../components/RegisterVerify';
 
 export default function VerifyRegisterPage() {
-  return <RegisterVerificationPage />
+  return <RegisterVerificationPage />;
 }

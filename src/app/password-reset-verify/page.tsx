@@ -1,5 +1,5 @@
-import ResetVerificationPage from '../components/ResetVerify'
+import ResetVerificationPage from '../components/ResetVerify';
 
 export default function VerifyPasswordResetPage() {
-  return <ResetVerificationPage />
+  return <ResetVerificationPage />;
 }

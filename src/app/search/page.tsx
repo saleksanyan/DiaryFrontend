@@ -7,6 +7,7 @@ import DiaryLogo from '@/app/components/Logo';
 import { CalendarDays, User, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/app/context/AuthContext';
+import { MOOD_COLORS } from '../components/UserProfile';
 
 interface BlogPost {
   id: string;
@@ -15,6 +16,7 @@ interface BlogPost {
   author: string;
   categories: string[];
   createdAt: string;
+  mood: string;
 }
 
 interface SearchResponse {
@@ -34,17 +36,22 @@ export default function SearchPage() {
     posts: [],
     total: 0,
     currentPage: 1,
-    totalPages: 1
+    totalPages: 1,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchSearchResults() {
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
-        
+
         if (!isAuthenticated) {
           throw new Error('Please login to search');
         }
@@ -53,14 +60,18 @@ export default function SearchPage() {
           `http://localhost:3000/search?q=${encodeURIComponent(query)}&page=${page}&limit=9`,
           {
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          }
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          },
         );
 
         if (!response.ok) {
-          throw new Error(response.status === 401 ? 'Session expired. Please login again.' : 'Failed to fetch results');
+          throw new Error(
+            response.status === 401
+              ? 'Session expired. Please login again.'
+              : 'Failed to fetch results',
+          );
         }
 
         const result = await response.json();
@@ -68,7 +79,7 @@ export default function SearchPage() {
           posts: result.data.posts || [],
           total: result.data.total || 0,
           currentPage: result.data.currentPage || 1,
-          totalPages: result.data.totalPages || 1
+          totalPages: result.data.totalPages || 1,
         });
       } catch (error) {
         console.error('Search error:', error);
@@ -77,7 +88,7 @@ export default function SearchPage() {
           posts: [],
           total: 0,
           currentPage: 1,
-          totalPages: 1
+          totalPages: 1,
         });
       } finally {
         setIsLoading(false);
@@ -99,14 +110,14 @@ export default function SearchPage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-pink-900 mb-4">
-            Search Results for "{query}"
-          </h1>
+          <h1 className="text-4xl font-bold text-pink-900 mb-4">Search Results for "{query}"</h1>
           {error ? (
             <p className="text-xl text-red-600 max-w-2xl mx-auto">{error}</p>
           ) : (
             <p className="text-xl text-pink-700 max-w-2xl mx-auto">
-              {isLoading ? 'Searching...' : `Found ${data.total} ${data.total === 1 ? 'result' : 'results'}`}
+              {isLoading
+                ? 'Searching...'
+                : `Found ${data.total} ${data.total === 1 ? 'result' : 'results'}`}
             </p>
           )}
         </div>
@@ -119,9 +130,7 @@ export default function SearchPage() {
             <h3 className="text-xl font-medium text-pink-900 mb-3">
               {error.includes('login') ? 'Authentication Required' : 'Search Error'}
             </h3>
-            <p className="text-pink-600 max-w-md mx-auto mb-6">
-              {error}
-            </p>
+            <p className="text-pink-600 max-w-md mx-auto mb-6">{error}</p>
             {error.includes('login') && (
               <Link
                 href="/login"
@@ -140,19 +149,15 @@ export default function SearchPage() {
             <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-pink-100 text-pink-600 mb-6">
               <Search className="h-8 w-8" />
             </div>
-            <h3 className="text-xl font-medium text-pink-900 mb-3">
-              No results found
-            </h3>
-            <p className="text-pink-600 max-w-md mx-auto">
-              Try different search terms
-            </p>
+            <h3 className="text-xl font-medium text-pink-900 mb-3">No results found</h3>
+            <p className="text-pink-600 max-w-md mx-auto">Try different search terms</p>
           </div>
         ) : (
           <>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {data.posts.map((post) => (
-                <div 
-                  key={post.id} 
+                <div
+                  key={post.id}
                   className="bg-white rounded-xl overflow-hidden border border-pink-100 hover:shadow-lg transition-all duration-300"
                 >
                   <Link href={`/post/${post.id}`}>
@@ -180,6 +185,21 @@ export default function SearchPage() {
                           <span title={new Date(post.createdAt).toLocaleString()}>
                             {new Date(post.createdAt).toLocaleDateString()}
                           </span>
+                          {post.mood && (
+                            <>
+                              <span className="mx-1">•</span>
+                              <span className="flex items-center">
+                                <span
+                                  className="inline-block w-3 h-3 rounded-full mr-1"
+                                  style={{
+                                    backgroundColor:
+                                      MOOD_COLORS[post.mood.toLowerCase()] || MOOD_COLORS.neutral,
+                                  }}
+                                ></span>
+                                {post.mood}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

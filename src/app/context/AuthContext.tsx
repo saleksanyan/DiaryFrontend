@@ -1,92 +1,107 @@
-"use client";
+'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface User {
+  id: string;
+  username: string;
+  email: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: any;
+  user: User | null;
   token: string | null;
-  login: (token: string, userData?: any) => Promise<void>;
+  login: (token: string, userData?: User) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<{
-    isAuthenticated: boolean;
-    user: any;
-    token: string | null;
-  }>({
-    isAuthenticated: false,
-    user: null,
-    token: null
-  });
   const router = useRouter();
 
-  const syncAuthState = () => {
-    const storedToken = localStorage.getItem('tempToken');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken) {
-      setState({
-        isAuthenticated: true,
-        user: storedUser ? JSON.parse(storedUser) : null,
-        token: storedToken
-      });
-    } else {
-      setState({
-        isAuthenticated: false,
-        user: null,
-        token: null
-      });
+  const [state, setState] = useState<{
+    isAuthenticated: boolean;
+    user: User | null;
+    token: string | null;
+  }>(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('tempToken');
+      const user = localStorage.getItem('user');
+      return {
+        isAuthenticated: !!token,
+        user: user ? JSON.parse(user) : null,
+        token: token,
+      };
     }
-  };
+    return { isAuthenticated: false, user: null, token: null };
+  });
 
-  useEffect(() => {
-    syncAuthState();
-  }, []);
-
-  const login = async (token: string, userData?: any) => {
+  const login = async (token: string, userData?: User) => {
     localStorage.setItem('tempToken', token);
     if (userData) {
       localStorage.setItem('user', JSON.stringify(userData));
     }
-    syncAuthState();
+    setState({
+      isAuthenticated: true,
+      user: userData || null,
+      token: token,
+    });
   };
 
   const logout = async () => {
     try {
-      const storedToken = localStorage.getItem('tempToken');
-
-      await fetch('http://localhost:3000/user/logout', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedToken}`
-        }
-      });
+      if (state.token) {
+        await fetch('http://localhost:3000/user/logout', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${state.token}`,
+          },
+        });
+      }
     } finally {
       localStorage.removeItem('tempToken');
       localStorage.removeItem('user');
       setState({
         isAuthenticated: false,
         user: null,
-        token: null
+        token: null,
       });
       router.push('/login');
     }
   };
 
+  // Add this useEffect to handle potential token changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'tempToken' || e.key === 'user') {
+        const token = localStorage.getItem('tempToken');
+        const user = localStorage.getItem('user');
+        setState({
+          isAuthenticated: !!token,
+          user: user ? JSON.parse(user) : null,
+          token: token,
+        });
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{
-      isAuthenticated: state.isAuthenticated,
-      user: state.user,
-      token: state.token,
-      login,
-      logout
-    }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: state.isAuthenticated,
+        user: state.user,
+        token: state.token,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

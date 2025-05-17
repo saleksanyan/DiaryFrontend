@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Head from 'next/head';
+import DiaryLogo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 
 export default function ForgotPasswordPage() {
-    const { isAuthenticated, token } = useAuth();
+  const { login, token } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,12 +19,12 @@ export default function ForgotPasswordPage() {
     setError('');
     setSuccess('');
 
-    try {       
+    try {
       const response = await fetch('http://localhost:3000/user/forget-password', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ email }),
       });
@@ -34,9 +34,7 @@ export default function ForgotPasswordPage() {
       if (!response.ok) {
         throw new Error(data.message || 'Failed to send password reset email');
       }
-
-      localStorage.setItem('tempToken', data.token);
-
+      await login(data.token);
       router.push(`/password-reset-verify`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send password reset email');
@@ -46,84 +44,119 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <>
-      <Head>
-        <title>Forgot Password | Your App</title>
-        <meta name="description" content="Reset your password" />
-      </Head>
+    <div className="min-h-screen relative">
+      {/* Full-screen background image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage:
+            "url('https://d4804za1f1gw.cloudfront.net/wp-content/uploads/sites/50/2018/11/hero.jpg')",
+          backgroundAttachment: 'fixed',
+          opacity: 0.85,
+        }}
+      />
 
-      <div className="min-h-screen bg-pink-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-pink-900">
-            Forgot your password?
-          </h2>
-          <p className="mt-2 text-center text-sm text-pink-700">
-            Enter your email and we'll send you a verification code to reset your password
-          </p>
-        </div>
+      {/* Semi-transparent overlay */}
+      <div className="absolute inset-0 bg-black/10 z-1"></div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10 border border-pink-200">
+      {/* Logo */}
+      <div className="absolute top-8 left-8 z-10">
+        <DiaryLogo
+          className=""
+          logoClassName="text-3xl font-serif italic text-white hover:text-white transition-colors"
+        />
+        <p className="text-white text-sm mt-1">Your personal stories & reflections</p>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 min-h-screen flex">
+        {/* Left empty space */}
+        <div className="w-1/2"></div>
+
+        {/* Right Side - Forgot Password Form */}
+        <div className="w-1/2 flex justify-center items-center">
+          <div className="w-full max-w-md p-8 border border-pink-100 rounded-xl shadow-xl bg-white/95 backdrop-blur-sm">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-serif text-pink-900 mb-2">Reset Your Password</h2>
+              <p className="text-pink-600">Enter your email to receive a reset code</p>
+            </div>
+
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg">
+              <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
                 {error}
               </div>
             )}
-            
+
             {success && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-200 text-green-700 rounded-lg">
+              <div className="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
                 {success}
               </div>
             )}
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-pink-900">
-                  Email address
+                <label htmlFor="email" className="block text-sm font-medium text-pink-900 mb-1">
+                  Email Address
                 </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-pink-300 rounded-md shadow-sm placeholder-pink-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500 sm:text-sm text-black"
-                  />
-                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-300 outline-none transition text-black"
+                  placeholder="Enter your email address"
+                />
               </div>
 
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 ${
-                    isLoading ? 'opacity-70 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isLoading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Sending...
-                    </>
-                  ) : 'Send Reset Code'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-300 transition ${
+                  isLoading ? 'opacity-80' : ''
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Code'
+                )}
+              </button>
             </form>
 
-            <div className="mt-6 text-center text-sm no-print">
+            <div className="mt-6 text-center text-sm text-pink-700">
+              Remember your password?{' '}
               <a href="/login" className="font-medium text-pink-600 hover:text-pink-500">
-                Back to login
+                Sign in
               </a>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

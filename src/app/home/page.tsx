@@ -1,88 +1,92 @@
-// app/page.tsx
-import { User } from 'lucide-react'
-import { PostCard } from '../components/PostCard'
-import { TopNav } from '../components/TopNav'
-import { ProtectedLink } from '../components/ProtectedLink'
+import { User } from 'lucide-react';
+import { PostCard } from '../components/PostCard';
+import { TopNav } from '../components/TopNav';
+import { ProtectedLink } from '../components/ProtectedLink';
 
 interface Category {
-  id: string
-  name: string
+  id: string;
+  name: string;
 }
 
 interface CategoriesWithCount {
-  categories: Category[]
-  total: number
+  categories: Category[];
+  total: number;
 }
 
 interface BlogPost {
-  id: string
-  title: string
-  content: string
-  author: string
-  authorId: string
-  categories: string[]
-  status: string
-  createdAt: string
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  authorId: string;
+  categories: string[];
+  status: string;
+  createdAt: string;
 }
 
 interface BlogPostsWithCount {
-  posts: BlogPost[]
-  total: number
+  posts: BlogPost[];
+  total: number;
 }
 
-async function getCategories(page: number = 1, limit: number = 10): Promise<CategoriesWithCount> {
+async function getCategories(): Promise<CategoriesWithCount> {
   try {
-    const res = await fetch(`http://localhost:3000/category/list?page=${page}&limit=${limit}`)
-    if (!res.ok) return { categories: [], total: 0 }
-    return await res.json()
+    const res = await fetch(`http://localhost:3000/category/list`);
+    if (!res.ok) return { categories: [], total: 0 };
+    return await res.json();
   } catch (error) {
-    return { categories: [], total: 0 }
+    return { categories: [], total: 0 };
   }
 }
 
-async function getPostsByCategory(categoryName: string, page: number = 1, limit: number = 3): Promise<BlogPostsWithCount> {
+async function getPostsByCategory(categoryName: string): Promise<BlogPostsWithCount> {
   try {
     const cleanedCategoryName = encodeURIComponent(categoryName.replaceAll(' ', '-'));
 
-    const res = await fetch(`http://localhost:3000/post/category/${cleanedCategoryName}?page=${page}&limit=${limit}`);
-    
+    const res = await fetch(
+      `http://localhost:3000/post/category/${cleanedCategoryName}/with-pages`,
+    );
+
     if (!res.ok) {
-      console.error("Failed to fetch posts:", res.status, res.statusText);
+      console.error('Failed to fetch posts:', res.status, res.statusText);
       return { posts: [], total: 0 };
     }
 
     const data = await res.json();
-    
+
     return {
       posts: data.posts || [],
-      total: data.total || 0
+      total: data.total || 0,
     };
   } catch (error) {
-    console.error("Error fetching posts:", error);
+    console.error('Error fetching posts:', error);
     return { posts: [], total: 0 };
   }
 }
 
 export default async function HomePage() {
-  const { categories: categories = [], total: totalCategories = 0 } = await getCategories(1, 10)
-  
-  const categoriesWithPosts = categories?.length > 0 
-    ? await Promise.all(
-        categories.map(async (category) => {
-          const { posts: posts = [], total: totalPosts = 0 } = await getPostsByCategory(category.name, 1, 3)
-          return { 
-            ...category, 
-            posts,
-            totalPosts
-          }
-        })
-      )
-    : []
+  const { categories: categories = [], total: totalCategories = 0 } = await getCategories();
+
+  const categoriesWithPosts =
+    categories?.length > 0
+      ? await Promise.all(
+          categories.map(async (category) => {
+            const { posts: posts = [], total: totalPosts = 0 } = await getPostsByCategory(
+              category.name,
+            );
+            return {
+              ...category,
+              posts,
+              totalPosts,
+            };
+          }),
+        )
+      : [];
 
   const categoriesWithPostsToShow = categoriesWithPosts.filter(
-    category => category.posts.length > 0
+    (category) => category.posts.length > 0,
   );
-  
+
   return (
     <div className="min-h-screen bg-white font-serif">
       <TopNav />
@@ -97,7 +101,7 @@ export default async function HomePage() {
           />
           <div className="absolute inset-0 bg-white/70" />
         </div>
-        
+
         <div className="relative z-10 max-w-6xl mx-auto h-full flex flex-col justify-center items-center">
           <div className="mb-8">
             <span className="text-5xl md:text-6xl font-serif italic text-pink-700 tracking-wider">
@@ -111,13 +115,13 @@ export default async function HomePage() {
           <h1 className="text-5xl md:text-6xl font-serif italic text-pink-800 mb-6 leading-tight">
             Welcome to our <span className="font-bold not-italic">Diary</span>
           </h1>
-          
+
           <p className="text-xl text-pink-800 max-w-2xl mx-auto font-serif">
             {categoriesWithPostsToShow.length > 0
               ? `Discover ${totalCategories} categories of extraordinary content`
               : 'No posts found in any category yet'}
           </p>
-          
+
           <div className="mt-10 flex justify-center items-center gap-4">
             <div className="w-16 h-px bg-pink-300" />
             <div className="w-2 h-2 rounded-full bg-pink-400" />
@@ -125,7 +129,7 @@ export default async function HomePage() {
           </div>
         </div>
       </div>
-      
+
       {/* Categories Section */}
       {categoriesWithPostsToShow.length > 0 ? (
         <div className="max-w-6xl mx-auto px-4 py-16 font-serif">
@@ -137,11 +141,9 @@ export default async function HomePage() {
             {categoriesWithPostsToShow.map((category) => (
               <div key={category.id} className="mb-12">
                 <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-2xl font-bold text-pink-700 italic">
-                    {category.name}
-                  </h3>
+                  <h3 className="text-2xl font-bold text-pink-700 italic">{category.name}</h3>
                   {category.totalPosts > 3 && (
-                    <ProtectedLink 
+                    <ProtectedLink
                       href={`/category/${category.id}`}
                       className="text-pink-600 hover:text-pink-800 text-sm font-medium font-serif"
                     >
@@ -165,9 +167,7 @@ export default async function HomePage() {
             <div className="mx-auto h-24 w-24 flex items-center justify-center rounded-full bg-white text-pink-600 mb-6">
               <User className="h-12 w-12" />
             </div>
-            <h3 className="text-2xl font-bold text-pink-800 mb-4 italic">
-              No posts available
-            </h3>
+            <h3 className="text-2xl font-bold text-pink-800 mb-4 italic">No posts available</h3>
             <p className="text-pink-600 max-w-md mx-auto mb-6">
               There are no posts in any category at the moment. Please check back later.
             </p>
@@ -180,25 +180,12 @@ export default async function HomePage() {
           </div>
         </div>
       )}
-  
+
       {/* Pagination and CTA */}
       {categoriesWithPostsToShow.length > 0 && (
         <>
-          {totalCategories > 10 && (
-            <div className="flex justify-center gap-4 pb-16 font-serif">
-              <button className="px-4 py-2 bg-pink-100 text-pink-700 rounded-lg hover:bg-pink-200 italic">
-                Previous
-              </button>
-              <button className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 italic">
-                Next
-              </button>
-            </div>
-          )}
-  
           <div className="bg-pink-50 py-16 px-4 text-center font-serif">
-            <h2 className="text-2xl font-bold text-pink-800 mb-6 italic">
-              Ready to explore more?
-            </h2>
+            <h2 className="text-2xl font-bold text-pink-800 mb-6 italic">Ready to explore more?</h2>
             <ProtectedLink
               href="/categories"
               className="inline-block px-6 py-3 bg-pink-600 text-white font-medium rounded-lg hover:bg-pink-700 transition-colors"
@@ -209,5 +196,5 @@ export default async function HomePage() {
         </>
       )}
     </div>
-  )
+  );
 }

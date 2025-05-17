@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import DiaryLogo from '@/app/components/Logo';
 import { TextEditor } from '@/app/components/TextEditor';
+import { TopNav } from '@/app/components/TopNav';
 import { useAuth } from '@/app/context/AuthContext';
 
 interface Category {
@@ -14,378 +14,288 @@ interface Category {
 interface PostData {
   title: string;
   content: string;
-  mood?: string;
-  categoryId: string;
-}
-
-interface Comment {
-  id: string;
-  comment: string;
-  author: string;
-  authorId: string;
-  createdAt: string;
-  isAuthor: boolean;
+  categories: string[];
+  mood: string;
+  visibility: 'public' | 'private';
+  authorId?: string;
 }
 
 export default function EditPost() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+  const { id } = useParams();
+  const { token, user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
   const [post, setPost] = useState<PostData>({
     title: '',
     content: '',
+    categories: [],
     mood: '',
-    categoryId: ''
+    visibility: 'private',
+    authorId: user?.id,
   });
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [commentError, setCommentError] = useState('');
-  const router = useRouter();
-  const { id } = useParams();
-  const { isAuthenticated, token } = useAuth();
-
-  const [currentUserId, setCurrentUserId] = useState('');
-
-  useEffect(() => {
-    if (token) {
-      const userData = JSON.parse(atob(token.split('.')[1]));
-      setCurrentUserId(userData.userId);
-    }
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
-      try {        
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+
+      try {
         const [postResponse, categoriesResponse] = await Promise.all([
           fetch(`http://localhost:3000/post/${id}`, {
-            method: 'GET',
-           }),
-          fetch('http://localhost:3000/category/list')
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }),
+          fetch('http://localhost:3000/category/list', {
+            cache: 'no-store',
+          }),
         ]);
-  
+
         if (!postResponse.ok || !categoriesResponse.ok) {
           throw new Error('Failed to fetch data');
         }
-  
+
         const [postData, categoriesData] = await Promise.all([
           postResponse.json(),
-          categoriesResponse.json()
+          categoriesResponse.json(),
         ]);
-  
-        // Ensure categoriesData is an array
-        const categoriesArray = Array.isArray(categoriesData) 
-          ? categoriesData 
-          : categoriesData.data || categoriesData.categories || [];
-  
+
         setPost({
           title: postData.title,
           content: postData.content,
+          categories: postData.categories || [],
           mood: postData.mood || '',
-          categoryId: postData.categoryId || ''
+          visibility: postData.visibility || 'private',
+          authorId: user?.id,
         });
-        setCategories(categoriesArray);
-        
-        // Fetch comments after post data is loaded
-        await fetchComments();
+        setCategories(
+          Array.isArray(categoriesData) ? categoriesData : categoriesData.categories || [],
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
-  
-    fetchData();
-  }, [id]);
-
-  const fetchComments = async () => {
-    try {
-      const token = localStorage.getItem('tempToken');
-      if (!token) {
-        setCommentError('Please login to view comments');
-        return;
-      }
-
-      const response = await fetch(`http://localhost:3000/comment/list/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch comments');
-      
-      const data = await response.json();
-      setComments(data.map((comment: any) => ({
-        ...comment,
-        isAuthor: comment.authorId === currentUserId
-      })));
-    } catch (err) {
-      setCommentError(err instanceof Error ? err.message : 'Failed to load comments');
+    if (token) {
+      fetchData();
     }
-  };
+  }, [id, token]);
 
-  const handleAddComment = async () => {
-    if (!newComment.trim()) return;
-    
-    try {
-      const token = localStorage.getItem('tempToken');
-      if (!token) {
-        setCommentError('Please login to comment');
-        return;
-      }
-
-      const response = await fetch('http://localhost:3000/comment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          comment: newComment,
-          postId: id
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to add comment');
-      
-      setNewComment('');
-      await fetchComments(); // Refresh comments
-    } catch (err) {
-      setCommentError(err instanceof Error ? err.message : 'Failed to add comment');
-    }
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    try {
-      const token = localStorage.getItem('tempToken');
-      const response = await fetch(`http://localhost:3000/comment/${commentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to delete comment');
-      
-      await fetchComments(); // Refresh comments
-    } catch (err) {
-      setCommentError(err instanceof Error ? err.message : 'Failed to delete comment');
-    }
+  const handleCategoryChange = (categoryName: string) => {
+    setPost((prev) => ({
+      ...prev,
+      categories: prev.categories.includes(categoryName)
+        ? prev.categories.filter((name) => name !== categoryName)
+        : [...prev.categories, categoryName],
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     setError('');
-    
+
     try {
-      const token = localStorage.getItem('tempToken');
       const response = await fetch(`http://localhost:3000/post/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: post.title,
           content: post.content,
-          categoryId: post.categoryId,
-          mood: post.mood
-        })
+          categories: post.categories,
+          mood: post.mood,
+          visibility: post.visibility,
+          authorId: user?.id,
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update post');
-      }
+      if (!response.ok) throw new Error('Failed to update post');
+      const data = await response.json();
 
-      router.push('/dashboard');
+      router.push(`/post/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update post');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setPost(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleContentChange = (content: string) => {
-    setPost(prev => ({ ...prev, content }));
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-pink-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-pink-50">
-      <div className="absolute top-8 left-8 z-10">
-        <DiaryLogo logoClassName="text-3xl font-serif italic text-pink-900 hover:text-pink-900 transition-colors"/>
-      </div>
+      <TopNav />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-pink-100 p-8">
-          <h2 className="text-2xl font-serif text-pink-900 mb-6">Edit Diary Entry</h2>
-          
-          {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-pink-900 mb-1">
-                Title
-              </label>
-              <input
-                id="title"
-                name="title"
-                type="text"
-                required
-                value={post.title}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-300 outline-none transition text-black"
-                placeholder="Entry title"
-              />
+      {isLoading ? (
+        <div className="flex justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          {/* Form Card */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-pink-200">
+            {/* Card Header */}
+            <div className="px-8 py-6 border-b border-pink-200 bg-pink-100">
+              <h1 className="text-2xl font-serif font-bold text-pink-900">Edit Your Entry</h1>
             </div>
 
-            <div>
-              <label htmlFor="categoryId" className="block text-sm font-medium text-pink-900 mb-1">
-                Category
-              </label>
-              <select
-                id="categoryId"
-                name="categoryId"
-                value={post.categoryId}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-300 outline-none transition text-black"
-                required
-                disabled={categories.length === 0}
-              >
-                <option value="">Select a category</option>
-                {categories.length > 0 ? (
-                  categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>No categories available</option>
-                )}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="mood" className="block text-sm font-medium text-pink-900 mb-1">
-                Mood (Optional)
-              </label>
-              <select
-                id="mood"
-                name="mood"
-                value={post.mood}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-300 outline-none transition text-black"
-              >
-                <option value="">No mood selected</option>
-                <option value="happy">Happy</option>
-                <option value="sad">Sad</option>
-                <option value="excited">Excited</option>
-                <option value="calm">Calm</option>
-                <option value="angry">Angry</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium text-pink-900 mb-1">
-                Content
-              </label>
-              <TextEditor
-                content={post.content}
-                onChange={handleContentChange}
-              />
-            </div>
-
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard')}
-                className="px-6 py-3 border border-pink-300 text-sm font-medium rounded-lg text-pink-700 bg-white hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 font-medium"
-              >
-                Update Entry
-              </button>
-            </div>
-          </form>
-
-          {/* Comments Section */}
-          <div className="mt-12 pt-8 border-t border-pink-200">
-            <h3 className="text-xl font-serif text-pink-900 mb-4">Comments</h3>
-            
-            {commentError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                {commentError}
-              </div>
-            )}
-
-            {/* Add comment form */}
-            <div className="mb-6 flex gap-2">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-grow px-4 py-2 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-300 outline-none transition"
-                onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-              />
-              <button
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:bg-pink-300 transition-colors"
-              >
-                Post
-              </button>
-            </div>
-
-            {/* Comments list */}
-            <div className="space-y-4">
-              {comments.length === 0 ? (
-                <p className="text-pink-600">No comments yet. Be the first to comment!</p>
-              ) : (
-                comments.map((comment) => (
-                  <div key={comment.id} className="bg-pink-50 rounded-lg p-4 border border-pink-100">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-pink-900">{comment.author}</p>
-                        <p className="text-sm text-pink-600 mb-2">
-                          {new Date(comment.createdAt).toLocaleString()}
-                        </p>
-                        <p className="text-pink-800">{comment.comment}</p>
-                      </div>
-                      {comment.isAuthor && (
-                        <button
-                          onClick={() => handleDeleteComment(comment.id)}
-                          className="text-pink-600 hover:text-pink-800 text-sm"
-                          title="Delete comment"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))
+            {/* Card Body */}
+            <div className="px-8 py-6">
+              {error && (
+                <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                  {error}
+                </div>
               )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Title Field */}
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-pink-900 mb-1">
+                    Title
+                  </label>
+                  <input
+                    id="title"
+                    type="text"
+                    value={post.title}
+                    onChange={(e) => setPost({ ...post, title: e.target.value })}
+                    className="w-full px-4 py-3 border border-pink-200 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-300 outline-none transition text-black"
+                    placeholder="What's on your mind?"
+                    required
+                  />
+                </div>
+
+                {/* Content Editor */}
+                <div>
+                  <label className="block text-sm font-medium text-pink-900 mb-1">Content</label>
+                  <TextEditor
+                    content={post.content}
+                    onChange={(content) => setPost({ ...post, content })}
+                    className="border border-pink-200 rounded-lg"
+                  />
+                </div>
+
+                {/* Visibility Toggle */}
+                <div className="flex items-center justify-between p-3 border border-pink-200 rounded-lg">
+                  <div>
+                    <label className="block text-sm font-medium text-pink-900 mb-1">
+                      Visibility
+                    </label>
+                    <p className="text-xs text-pink-500">
+                      {post.visibility === 'public'
+                        ? 'This post will be visible to everyone'
+                        : 'This post will be private to only you'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPost({
+                        ...post,
+                        visibility: post.visibility === 'public' ? 'private' : 'public',
+                      })
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 ${
+                      post.visibility === 'public' ? 'bg-pink-600' : 'bg-pink-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        post.visibility === 'public' ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Categories */}
+                <div>
+                  <label className="block text-sm font-medium text-pink-900 mb-1">Categories</label>
+                  <div className="space-y-2 max-h-60 overflow-y-auto p-3 border border-pink-200 rounded-lg">
+                    {categories.length > 0 ? (
+                      categories.map((category) => (
+                        <div key={category.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`category-${category.id}`}
+                            checked={post.categories.includes(category.name)}
+                            onChange={() => handleCategoryChange(category.name)}
+                            className="h-4 w-4 text-pink-600 focus:ring-pink-300 border-pink-200 rounded"
+                          />
+                          <label
+                            htmlFor={`category-${category.id}`}
+                            className="ml-2 text-sm text-pink-900"
+                          >
+                            {category.name}
+                          </label>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-pink-500">No categories available</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end gap-4 pt-6 border-t border-pink-200">
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="px-6 py-3 border border-pink-200 rounded-lg text-pink-700 hover:bg-pink-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || post.categories.length === 0}
+                    className={`px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-300 transition ${
+                      isSubmitting || post.categories.length === 0
+                        ? 'opacity-70 cursor-not-allowed'
+                        : ''
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg
+                          className="animate-spin -ml-1 mr-2 h-5 w-5 text-white inline"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Entry'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
